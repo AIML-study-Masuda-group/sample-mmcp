@@ -1,0 +1,514 @@
+# ==============================================================================
+# mmcp 用の mise 設定ファイル
+# ==============================================================================
+# このファイルは、mmcp（MCP Server Manager）を使用してMCPサーバーを管理するための
+# mise 設定ファイルのサンプルです。
+#
+# セットアップ:
+#   1. このファイルの内容を ~/.config/mise/config.toml にマージ
+#   2. ~/.config/mise/.env.mcp ファイルを作成（.env.mcp.sample を参照）
+#   3. mise run mcp-setup-quick でMCPサーバーを追加
+#   4. mise run mmcp-agents-add claude-code でエージェントを追加
+#   5. mise run mmcp-apply で設定を適用
+# ==============================================================================
+
+# -----------------------------------------------------------------------------
+# ツール管理
+# -----------------------------------------------------------------------------
+[tools]
+node      = "22.21.0"       # Node.js 22.x LTS 最新版 主にVSCodeのClaude Code用
+"npm:mmcp" = "latest"       # MCP サーバー管理ツール
+
+# ==============================================================================
+# MCP サーバー管理タスク (mmcp)
+# ==============================================================================
+# MCPサーバーを一元管理し、Claude Code/Cursor等のエージェントに適用するツール
+#
+# 基本的な使い方:
+#   1. mise run mcp-setup-quick            # すぐに使えるMCPサーバーを追加
+#   2. mise run mcp-setup-with-env         # 環境変数が必要なMCPサーバーを追加
+#   3. mise run mcp-install-toolbox        # Google MCP Toolbox をインストール
+#   4. mise run mcp-setup-gcp-toolbox      # BigQuery & Dataplex を追加
+#   5. mise run mmcp-agents-add claude-code  # 対象エージェントを指定
+#   6. mise run mmcp-apply                 # 設定を適用
+#
+# 環境変数の管理:
+#   ~/.config/mise/.env.mcp に以下の形式で記載:
+#     GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxxxx
+#     NOTION_TOKEN=ntn_xxxxx
+#     SLACK_BOT_TOKEN=xoxb-xxxxx
+#     SLACK_TEAM_ID=T01234567
+#     BIGQUERY_PROJECT=your-project-id
+#     DATAPLEX_PROJECT=your-project-id
+#     GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json  # 任意
+#
+# Serena のセットアップ:
+#   uv tool でグローバルインストール:
+#     uv tool install git+https://github.com/oraios/serena
+#   その後、以下で追加:
+#     mise run mcp-install-serena
+#     mise run mcp-add-serena
+#
+# 登録可能なMCPサーバー:
+#   環境変数不要:
+#     - Sequential Thinking (公式)
+#     - Context7 (公式)
+#     - Filesystem (公式)
+#     - Playwright (Microsoft公式)
+#   環境変数必要:
+#     - GitHub (公式Docker版)
+#     - Notion (公式)
+#     - Slack (公式)
+#   Google Cloud (MCP Toolbox):
+#     - BigQuery (Google公式)
+#     - Dataplex (Google公式)
+#   その他:
+#     - Serena (コミュニティ)
+#
+# 対応エージェント:
+#   - claude-code (VS Code拡張)
+#   - claude-desktop (Claude Desktop)
+#   - codex-cli (OpenAI Codex CLI)
+#   - github-copilot-cli (GitHub Copilot CLI)
+# ==============================================================================
+
+# -----------------------------------------------------------------------------
+# すぐに使えるMCPサーバー（環境変数不要）
+# -----------------------------------------------------------------------------
+[tasks.mcp-setup-quick]
+description = "すぐに使えるMCPサーバーを追加（Sequential Thinking, Context7, Filesystem, Playwright）"
+run = """
+  echo "📦 すぐに使えるMCPサーバーを追加します..."
+  echo ""
+
+  # npxの絶対パスを取得（miseでインストールされたもの）
+  NODE_BIN="$(mise where node)/bin"
+  NPX_PATH="$NODE_BIN/npx"
+  echo "✓ npx のパス: $NPX_PATH"
+  echo "✓ Node.js bin のパス: $NODE_BIN"
+  echo ""
+
+  # Sequential Thinking - 構造化された思考プロセス
+  echo "✓ Sequential Thinking を追加中..."
+  mmcp add --env PATH="$NODE_BIN:$PATH" -- sequential-thinking "$NPX_PATH" -y @modelcontextprotocol/server-sequential-thinking
+
+  # Context7 - ドキュメント検索（API keyなしでも動作）
+  echo "✓ Context7 を追加中..."
+  mmcp add --env PATH="$NODE_BIN:$PATH" -- context7 "$NPX_PATH" -y @upstash/context7-mcp
+
+  # Filesystem - ファイル操作（デフォルトでホームディレクトリを指定）
+  echo "✓ Filesystem を追加中（対象: $HOME/Desktop）..."
+  mmcp add --env PATH="$NODE_BIN:$PATH" -- filesystem "$NPX_PATH" -y @modelcontextprotocol/server-filesystem "$HOME/Desktop"
+
+  # Playwright - ブラウザ自動化（Microsoft公式）
+  echo "✓ Playwright を追加中..."
+  mmcp add --env PATH="$NODE_BIN:$PATH" -- playwright "$NPX_PATH" -y @playwright/mcp
+
+  echo ""
+  echo "✅ すぐに使えるMCPサーバーの追加が完了しました！"
+  echo ""
+  echo "次のステップ:"
+  echo "  1. mise run mmcp-agents-add claude-code"
+  echo "  2. mise run mmcp-apply"
+"""
+
+# -----------------------------------------------------------------------------
+# 環境変数が必要なMCPサーバー
+# -----------------------------------------------------------------------------
+[tasks.mcp-setup-with-env]
+description = "環境変数が必要なMCPサーバーを追加（GitHub, Notion, Slack, BigQuery）"
+run = """
+  echo "🔑 環境変数が必要なMCPサーバーを追加します..."
+  echo ""
+
+  # 環境変数ファイルの確認
+  ENV_FILE="$HOME/.config/mise/.env.mcp"
+  if [ ! -f "$ENV_FILE" ]; then
+    echo "⚠️  環境変数ファイルが見つかりません: $ENV_FILE"
+    echo ""
+
+    # .envディレクトリの作成
+    mkdir -p "$(dirname "$ENV_FILE")"
+
+    # テンプレートファイルを作成
+    cat > "$ENV_FILE" <<'EOF'
+# ==============================================================================
+# MCP サーバー用環境変数
+# ==============================================================================
+# このファイルに必要なAPI keyやトークンを設定してください。
+# 設定後、mise run mcp-setup-with-env を再度実行してください。
+# ==============================================================================
+
+# GitHub Personal Access Token
+# 作成方法: https://github.com/settings/tokens
+#   Settings > Developer settings > Personal access tokens > Tokens (classic)
+# 必要なスコープ: repo (または public_repo のみでも可)
+GITHUB_PERSONAL_ACCESS_TOKEN=
+
+# Notion Integration Token
+# 作成方法: https://www.notion.so/profile/integrations
+#   新しいインテグレーションを作成 > Internal Integration Token をコピー
+NOTION_TOKEN=
+
+# Slack Bot Token & Team ID
+# 作成方法: https://api.slack.com/apps
+#   新しいアプリを作成 > OAuth & Permissions > Bot User OAuth Token
+SLACK_BOT_TOKEN=
+SLACK_TEAM_ID=
+# SLACK_CHANNEL_IDS=  # オプション: カンマ区切りでチャンネルIDを指定
+
+# Google Cloud (MCP Toolbox) - BigQuery & Dataplex
+# 作成方法: https://console.cloud.google.com/
+#   プロジェクトIDを確認
+# 認証方法:
+#   方法1: Application Default Credentials（推奨）
+#     gcloud auth application-default login
+#   方法2: サービスアカウントキー
+#     IAM & Admin > Service Accounts > Create Service Account
+#     JSON形式のキーファイルをダウンロード
+BIGQUERY_PROJECT=
+DATAPLEX_PROJECT=
+GOOGLE_APPLICATION_CREDENTIALS=  # 任意: 未設定の場合は gcloud ADC を使用
+EOF
+
+    echo "✅ テンプレートファイルを作成しました: $ENV_FILE"
+    echo ""
+    echo "次のステップ:"
+    echo "  1. エディタでファイルを開く: vim $ENV_FILE"
+    echo "  2. 必要なAPI keyやトークンを設定"
+    echo "  3. 再度実行: mise run mcp-setup-with-env"
+    echo ""
+
+    # エディタで開くか確認（インタラクティブモード用）
+    if [ -t 0 ]; then
+      read -p "今すぐエディタで開きますか？ [y/N]: " -n 1 -r
+      echo
+      if [[ $REPLY =~ ^[Yy]$ ]]; then
+        ${EDITOR:-vim} "$ENV_FILE"
+        echo ""
+        echo "編集が完了したら、再度実行してください:"
+        echo "  mise run mcp-setup-with-env"
+      fi
+    fi
+
+    exit 1
+  fi
+
+  # 環境変数を読み込み
+  source "$ENV_FILE"
+
+  echo "✓ 環境変数ファイルを読み込みました: $ENV_FILE"
+  echo ""
+
+  # npxの絶対パスを取得（miseでインストールされたもの）
+  NODE_BIN="$(mise where node)/bin"
+  NPX_PATH="$NODE_BIN/npx"
+  echo "✓ npx のパス: $NPX_PATH"
+  echo "✓ Node.js bin のパス: $NODE_BIN"
+  echo ""
+
+  ADDED_COUNT=0
+
+  # GitHub - リポジトリ操作（公式Docker版）
+  if [ -n "$GITHUB_PERSONAL_ACCESS_TOKEN" ]; then
+    echo "✓ GitHub を追加中（公式Docker版）..."
+    mmcp add --env GITHUB_PERSONAL_ACCESS_TOKEN="$GITHUB_PERSONAL_ACCESS_TOKEN" -- github docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN ghcr.io/github/github-mcp-server
+    ADDED_COUNT=$((ADDED_COUNT + 1))
+  else
+    echo "⊘ GitHub をスキップ（GITHUB_PERSONAL_ACCESS_TOKEN が未設定）"
+  fi
+
+  # Notion - Notion API
+  if [ -n "$NOTION_TOKEN" ]; then
+    echo "✓ Notion を追加中..."
+    mmcp add --env PATH="$NODE_BIN:$PATH" --env NOTION_TOKEN="$NOTION_TOKEN" -- notion "$NPX_PATH" -y @notionhq/notion-mcp-server
+    ADDED_COUNT=$((ADDED_COUNT + 1))
+  else
+    echo "⊘ Notion をスキップ（NOTION_TOKEN が未設定）"
+  fi
+
+  # Slack - Slack API
+  if [ -n "$SLACK_BOT_TOKEN" ] && [ -n "$SLACK_TEAM_ID" ]; then
+    echo "✓ Slack を追加中..."
+    if [ -n "$SLACK_CHANNEL_IDS" ]; then
+      mmcp add --env PATH="$NODE_BIN:$PATH" --env SLACK_BOT_TOKEN="$SLACK_BOT_TOKEN" --env SLACK_TEAM_ID="$SLACK_TEAM_ID" --env SLACK_CHANNEL_IDS="$SLACK_CHANNEL_IDS" -- slack "$NPX_PATH" -y @modelcontextprotocol/server-slack
+    else
+      mmcp add --env PATH="$NODE_BIN:$PATH" --env SLACK_BOT_TOKEN="$SLACK_BOT_TOKEN" --env SLACK_TEAM_ID="$SLACK_TEAM_ID" -- slack "$NPX_PATH" -y @modelcontextprotocol/server-slack
+    fi
+    ADDED_COUNT=$((ADDED_COUNT + 1))
+  else
+    echo "⊘ Slack をスキップ（SLACK_BOT_TOKEN または SLACK_TEAM_ID が未設定）"
+  fi
+
+  echo ""
+  if [ $ADDED_COUNT -eq 0 ]; then
+    echo "⚠️  追加されたMCPサーバーはありません（環境変数を確認してください）"
+  else
+    echo "✅ $ADDED_COUNT 個のMCPサーバーを追加しました！"
+  fi
+  echo ""
+  echo "次のステップ:"
+  echo "  1. mise run mmcp-agents-add claude-code"
+  echo "  2. mise run mmcp-apply"
+"""
+
+# -----------------------------------------------------------------------------
+# MCP Toolbox - Google公式のBigQuery & Dataplex統合
+# -----------------------------------------------------------------------------
+[tasks.mcp-install-toolbox]
+description = "MCP Toolbox バイナリをインストール（BigQuery & Dataplex用）"
+run = """
+  echo "🔧 MCP Toolbox をインストールします..."
+  echo ""
+
+  # OSとアーキテクチャを検出
+  OS_TYPE=$(uname -s | tr '[:upper:]' '[:lower:]')
+  ARCH=$(uname -m)
+
+  case "$OS_TYPE" in
+    darwin)
+      case "$ARCH" in
+        arm64) PLATFORM="darwin/arm64" ;;
+        x86_64) PLATFORM="darwin/amd64" ;;
+        *) echo "❌ サポートされていないアーキテクチャ: $ARCH"; exit 1 ;;
+      esac
+      ;;
+    linux)
+      case "$ARCH" in
+        x86_64) PLATFORM="linux/amd64" ;;
+        aarch64) PLATFORM="linux/arm64" ;;
+        *) echo "❌ サポートされていないアーキテクチャ: $ARCH"; exit 1 ;;
+      esac
+      ;;
+    *)
+      echo "❌ サポートされていないOS: $OS_TYPE"
+      exit 1
+      ;;
+  esac
+
+  echo "✓ プラットフォーム: $PLATFORM"
+
+  # インストール先ディレクトリの作成
+  INSTALL_DIR="$HOME/.local/bin"
+  mkdir -p "$INSTALL_DIR"
+
+  # バイナリをダウンロード
+  TOOLBOX_VERSION="v0.18.0"
+  DOWNLOAD_URL="https://storage.googleapis.com/genai-toolbox/$TOOLBOX_VERSION/$PLATFORM/toolbox"
+
+  echo "✓ ダウンロード中: $DOWNLOAD_URL"
+  curl -L -o "$INSTALL_DIR/toolbox" "$DOWNLOAD_URL"
+
+  # 実行権限を付与
+  chmod +x "$INSTALL_DIR/toolbox"
+
+  echo ""
+  echo "✅ MCP Toolbox のインストールが完了しました！"
+  echo ""
+  echo "インストール先: $INSTALL_DIR/toolbox"
+  echo "バージョン: $TOOLBOX_VERSION"
+  echo ""
+  echo "次のステップ: mise run mcp-setup-gcp-toolbox"
+"""
+
+[tasks.mcp-setup-gcp-toolbox]
+description = "MCP Toolbox（BigQuery & Dataplex）を mmcp に追加"
+run = """
+  echo "📦 MCP Toolbox（BigQuery & Dataplex）を追加します..."
+  echo ""
+
+  # 環境変数ファイルの確認
+  ENV_FILE="$HOME/.config/mise/.env.mcp"
+  if [ ! -f "$ENV_FILE" ]; then
+    echo "⚠️  環境変数ファイルが見つかりません: $ENV_FILE"
+    echo "先に mise run mcp-setup-with-env を実行してください。"
+    exit 1
+  fi
+
+  # 環境変数を読み込み
+  source "$ENV_FILE"
+
+  # toolbox バイナリの確認
+  TOOLBOX_PATH="$HOME/.local/bin/toolbox"
+  if [ ! -f "$TOOLBOX_PATH" ]; then
+    echo "⚠️  toolbox バイナリが見つかりません"
+    echo ""
+    echo "先に以下を実行してください:"
+    echo "  mise run mcp-install-toolbox"
+    exit 1
+  fi
+
+  echo "✓ toolbox が見つかりました: $TOOLBOX_PATH"
+  echo ""
+
+  ADDED_COUNT=0
+
+  # BigQuery
+  if [ -n "$BIGQUERY_PROJECT" ]; then
+    echo "✓ BigQuery（Google公式）を追加中..."
+    if [ -n "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+      # サービスアカウントキーが指定されている場合
+      mmcp add --env BIGQUERY_PROJECT="$BIGQUERY_PROJECT" --env GOOGLE_APPLICATION_CREDENTIALS="$GOOGLE_APPLICATION_CREDENTIALS" -- gcp-bigquery "$TOOLBOX_PATH" --prebuilt bigquery --stdio
+    else
+      # Application Default Credentials を使用（gcloud auth application-default login）
+      mmcp add --env BIGQUERY_PROJECT="$BIGQUERY_PROJECT" -- gcp-bigquery "$TOOLBOX_PATH" --prebuilt bigquery --stdio
+    fi
+    ADDED_COUNT=$((ADDED_COUNT + 1))
+  else
+    echo "⊘ BigQuery をスキップ（BIGQUERY_PROJECT が未設定）"
+  fi
+
+  # Dataplex
+  if [ -n "$DATAPLEX_PROJECT" ]; then
+    echo "✓ Dataplex（Google公式）を追加中..."
+    if [ -n "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+      # サービスアカウントキーが指定されている場合
+      mmcp add --env DATAPLEX_PROJECT="$DATAPLEX_PROJECT" --env GOOGLE_APPLICATION_CREDENTIALS="$GOOGLE_APPLICATION_CREDENTIALS" -- gcp-dataplex "$TOOLBOX_PATH" --prebuilt dataplex --stdio
+    else
+      # Application Default Credentials を使用（gcloud auth application-default login）
+      mmcp add --env DATAPLEX_PROJECT="$DATAPLEX_PROJECT" -- gcp-dataplex "$TOOLBOX_PATH" --prebuilt dataplex --stdio
+    fi
+    ADDED_COUNT=$((ADDED_COUNT + 1))
+  else
+    echo "⊘ Dataplex をスキップ（DATAPLEX_PROJECT が未設定）"
+  fi
+
+  echo ""
+  if [ $ADDED_COUNT -eq 0 ]; then
+    echo "⚠️  追加されたサービスはありません（環境変数を確認してください）"
+  else
+    echo "✅ $ADDED_COUNT 個のGoogle Cloudサービスを追加しました！"
+  fi
+  echo ""
+  echo "認証方法:"
+  echo "  - サービスアカウントキー: GOOGLE_APPLICATION_CREDENTIALS を設定"
+  echo "  - Application Default Credentials: gcloud auth application-default login"
+  echo ""
+  echo "次のステップ:"
+  echo "  1. mise run mmcp-agents-add claude-code"
+  echo "  2. mise run mmcp-apply"
+"""
+
+# -----------------------------------------------------------------------------
+# Serena - セマンティックコード検索（uv tool管理）
+# -----------------------------------------------------------------------------
+[tasks.mcp-install-serena]
+description = "Serena を uv tool でグローバルインストール"
+run = """
+  echo "🔧 Serena を uv tool でインストールします..."
+  echo ""
+  uv tool install git+https://github.com/oraios/serena
+  echo ""
+  echo "✅ Serena のインストールが完了しました！"
+  echo ""
+  echo "次のステップ: mise run mcp-add-serena"
+"""
+
+[tasks.mcp-add-serena]
+description = "Serena を mmcp に追加（事前に mise run mcp-install-serena が必要）"
+run = """
+  echo "📦 Serena を mmcp に追加します..."
+  echo ""
+
+  # serena コマンドの確認
+  if ! command -v serena &> /dev/null; then
+    echo "⚠️  serena コマンドが見つかりません"
+    echo ""
+    echo "先に以下を実行してください:"
+    echo "  mise run mcp-install-serena"
+    exit 1
+  fi
+
+  SERENA_PATH=$(which serena)
+  echo "✓ serena が見つかりました: $SERENA_PATH"
+  echo ""
+
+  # Serena を追加
+  echo "✓ Serena を追加中..."
+  mmcp add -- serena "$SERENA_PATH" start-mcp-server
+
+  echo ""
+  echo "✅ Serena の追加が完了しました！"
+  echo ""
+  echo "対応言語: Python, TypeScript/JavaScript, PHP, Go, Rust, C/C++, Java"
+  echo ""
+  echo "次のステップ:"
+  echo "  1. mise run mmcp-agents-add claude-code"
+  echo "  2. mise run mmcp-apply"
+"""
+
+# -----------------------------------------------------------------------------
+# 基本的なmmcp操作タスク
+# -----------------------------------------------------------------------------
+[tasks.mmcp-add]
+description = "MCP サーバーを mmcp に追加 (例: mise run mmcp-add -- context7 npx -y @upstash/context7-mcp@latest)"
+run = "mmcp add -- \"$@\""
+
+[tasks.mmcp-remove]
+description = "MCP サーバーを削除 (例: mise run mmcp-remove playwright)"
+run = "mmcp remove \"$@\""
+
+[tasks.mmcp-list]
+description = "登録済み MCP サーバーを表示"
+run = "mmcp list"
+
+[tasks.mmcp-agents-add]
+description = "対象エージェントを追加 (例: mise run mmcp-agents-add claude-code)"
+run = "mmcp agents add \"$@\""
+
+[tasks.mmcp-agents-list]
+description = "登録済みエージェントを表示"
+run = "mmcp agents list"
+
+[tasks.mmcp-apply]
+description = "mmcp 設定を各エージェントに適用"
+run = "mmcp apply"
+
+[tasks.mmcp-browse-catalog]
+description = "MCP サーバーカタログをブラウザで開く"
+run = "open https://mcpmarket.com/server"
+
+# -----------------------------------------------------------------------------
+# MCPサーバーの更新タスク
+# -----------------------------------------------------------------------------
+[tasks.mmcp-update]
+description = "既存のMCPサーバーを更新（環境変数で指定: NAME, CMD, ARGS）例: NAME=playwright CMD='npx -y @playwright/mcp' mise run mmcp-update"
+run = """
+  if [ -z "$NAME" ] || [ -z "$CMD" ]; then
+    echo "❌ 環境変数が設定されていません"
+    echo ""
+    echo "使い方:"
+    echo "  NAME=<サーバー名> CMD='<コマンド>' [ARGS='<引数>'] mise run mmcp-update"
+    echo ""
+    echo "例:"
+    echo "  NAME=playwright CMD='npx -y @playwright/mcp' mise run mmcp-update"
+    echo "  NAME=context7 CMD='npx -y @upstash/context7-mcp' mise run mmcp-update"
+    exit 1
+  fi
+
+  NODE_BIN="$(mise where node)/bin"
+
+  echo "🔄 $NAME を更新します..."
+  echo ""
+
+  # 既存のサーバーを削除
+  if mmcp list 2>/dev/null | grep -q "$NAME"; then
+    echo "✓ 既存の $NAME を削除中..."
+    mmcp remove "$NAME"
+  else
+    echo "ℹ️  $NAME は未登録です（新規追加します）"
+  fi
+
+  # 新しいサーバーを追加
+  echo "✓ $NAME を追加中..."
+  if [ -n "$ARGS" ]; then
+    mmcp add --env PATH="$NODE_BIN:$PATH" $ARGS -- "$NAME" $CMD
+  else
+    mmcp add --env PATH="$NODE_BIN:$PATH" -- "$NAME" $CMD
+  fi
+
+  echo ""
+  echo "✅ $NAME の更新が完了しました！"
+  echo ""
+  echo "次のステップ: mise run mmcp-apply"
+"""
