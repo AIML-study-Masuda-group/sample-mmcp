@@ -17,6 +17,7 @@
 
 - **mmcp単体での使い方** - 基本的な使用方法（このREADME）
 - **miseによる自動化** - より高度な自動化（[docs/MISE.md](docs/MISE.md)）
+- **CLIツール vs MCPサーバー** - 効率的な使い分け方（[docs/CLI_VS_MCP.md](docs/CLI_VS_MCP.md)）
 - **API key取得方法** - 各サービスのトークン取得手順（[docs/API_KEYS.md](docs/API_KEYS.md)）
 - **トラブルシューティング** - 問題解決ガイド（[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)）
 
