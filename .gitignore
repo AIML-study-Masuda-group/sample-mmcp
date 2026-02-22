@@ -18,6 +18,8 @@ audio/
 output/
 output/*
 .env
+.env.mcp
+!.env.mcp.sample
 csv/*
 *.csv
 plots/
