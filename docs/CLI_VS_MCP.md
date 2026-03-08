@@ -436,6 +436,43 @@ curl -X POST https://api.notion.com/v1/pages \
 
 ---
 
+## 🔧 Node.js MCP サーバーの実行方式: npx -y vs mise install
+
+Node.js パッケージの MCP サーバーを動かす方法は2つあります。
+
+### 方式比較
+
+| 観点 | npx -y（推奨） | mise [tools] でインストール |
+|---|---|---|
+| バージョン | 常に最新（@latest） | 固定（再現性あり） |
+| 起動速度 | 初回遅い（DL）、2回目以降キャッシュ | 常に速い |
+| 管理 | mmcp add のみ | mise.toml + mmcp add（二重管理） |
+| チーム共有 | ~/.mmcp.json で完結 | config.toml の [tools] にも記載要 |
+| アップデート | 自動（npx が勝手に更新） | 手動（mise.toml のバージョン変更） |
+
+### 推奨: npx -y で統一
+
+Node.js 系 MCP サーバーは `npx -y` で統一を推奨します。
+
+**理由:**
+
+- **管理がシンプル**: `mmcp add` だけで完結し、mise.toml との二重管理が不要
+- **バージョン固定の必要性が低い**: MCP サーバーは API 互換性が保たれやすく、最新版を使うリスクが低い
+- **チーム共有しやすい**: `~/.mmcp.json` だけで再現可能
+
+### 現在の実行方式一覧
+
+| MCP サーバー | 方式 | 理由 |
+|---|---|---|
+| filesystem, playwright, notion, gemini, drawio | npx -y | Node.js パッケージ |
+| gcp-bigquery, gcp-dataplex | ローカルバイナリ | Go 製の toolbox |
+| serena | uv tool | Python 製 |
+| popup-bi | カスタムスクリプト | プロジェクト固有 |
+
+Node.js 以外の MCP サーバーは、それぞれ適切な方式（バイナリ直接実行、uv tool 等）で管理しています。
+
+---
+
 ## 関連ドキュメント
 
 - [README.md](../README.md) - mmcp基本ガイド

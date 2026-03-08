@@ -17,7 +17,7 @@
 # -----------------------------------------------------------------------------
 [tools]
 node      = "22.21.0"       # Node.js 22.x LTS 最新版 主にVSCodeのClaude Code用
-"npm:mmcp" = "latest"       # MCP サーバー管理ツール
+"npm:mmcp" = "0.6.2"        # MCP サーバー管理ツール（v0.6.0+ で replace mode 対応）
 
 # ==============================================================================
 # MCP サーバー管理タスク (mmcp)
@@ -64,12 +64,15 @@ node      = "22.21.0"       # Node.js 22.x LTS 最新版 主にVSCodeのClaude C
 #     - Dataplex (Google公式)
 #   その他:
 #     - Serena (コミュニティ)
+#   AI エージェント連携:
+#     - Gemini MCP（Claude Code内からGeminiを呼ぶ・軽い用途）
 #
 # 対応エージェント:
 #   - claude-code (VS Code拡張)
 #   - claude-desktop (Claude Desktop)
 #   - codex-cli (OpenAI Codex CLI)
 #   - github-copilot-cli (GitHub Copilot CLI)
+#   - gemini-cli (Google Gemini CLI)
 # ==============================================================================
 
 # -----------------------------------------------------------------------------
@@ -169,6 +172,10 @@ SLACK_TEAM_ID=
 BIGQUERY_PROJECT=
 DATAPLEX_PROJECT=
 GOOGLE_APPLICATION_CREDENTIALS=  # 任意: 未設定の場合は gcloud ADC を使用
+
+# Gemini API Key (Gemini MCP サーバー用)
+# 取得方法: https://aistudio.google.com/apikey（無料）
+GEMINI_API_KEY=
 EOF
 
     echo "✅ テンプレートファイルを作成しました: $ENV_FILE"
@@ -238,6 +245,16 @@ EOF
     ADDED_COUNT=$((ADDED_COUNT + 1))
   else
     echo "⊘ Slack をスキップ（SLACK_BOT_TOKEN または SLACK_TEAM_ID が未設定）"
+  fi
+
+  # Gemini MCP - Claude Code内からGeminiを呼べる
+  if [ -n "$GEMINI_API_KEY" ]; then
+    echo "✓ Gemini MCP を追加中..."
+    mmcp add --env PATH="$NODE_BIN:$PATH" --env GEMINI_API_KEY="$GEMINI_API_KEY" --env QUIET=true \
+      -- gemini "$NPX_PATH" -y @rlabs-inc/gemini-mcp
+    ADDED_COUNT=$((ADDED_COUNT + 1))
+  else
+    echo "⊘ Gemini MCP をスキップ（GEMINI_API_KEY が未設定）"
   fi
 
   echo ""
@@ -423,9 +440,9 @@ run = """
   echo "✓ serena が見つかりました: $SERENA_PATH"
   echo ""
 
-  # Serena を追加
+  # Serena を追加（ダッシュボード自動起動を無効化）
   echo "✓ Serena を追加中..."
-  mmcp add -- serena "$SERENA_PATH" start-mcp-server
+  mmcp add -f -- serena "$SERENA_PATH" start-mcp-server --open-web-dashboard false
 
   echo ""
   echo "✅ Serena の追加が完了しました！"
@@ -435,6 +452,54 @@ run = """
   echo "次のステップ:"
   echo "  1. mise run mmcp-agents-add claude-code"
   echo "  2. mise run mmcp-apply"
+"""
+
+# -----------------------------------------------------------------------------
+# AI エージェント連携 MCP（Claude Code内から他AIを呼ぶ）
+# -----------------------------------------------------------------------------
+# Claude Code をメインに、Gemini をサブエージェントとして活用する。
+# 軽い用途（質問、小さな分析）は MCP 経由、
+# 重い用途（レビュー、実装委譲）は CLI 直接呼び出し（Skills経由）を推奨。
+#
+# Codex CLI は MCP サポートが発展途上のため、CLI 直接呼び出しのみ。
+# -----------------------------------------------------------------------------
+
+[tasks.mcp-add-gemini]
+description = "Gemini MCP サーバーを追加（Claude Code内からGeminiを軽く呼べるようにする）"
+run = """
+  echo "📦 Gemini MCP サーバーを追加します..."
+  echo ""
+
+  # .env.mcp から環境変数を読み込み
+  ENV_FILE="$HOME/.config/mise/.env.mcp"
+  if [ -f "$ENV_FILE" ]; then
+    source "$ENV_FILE"
+  fi
+
+  if [ -z "$GEMINI_API_KEY" ]; then
+    echo "❌ GEMINI_API_KEY が未設定です"
+    echo ""
+    echo "取得方法:"
+    echo "  1. https://aistudio.google.com/apikey にアクセス"
+    echo "  2. 「Get API key」をクリック（無料）"
+    echo "  3. ~/.config/mise/.env.mcp に GEMINI_API_KEY=AIzaSy... を追加"
+    exit 1
+  fi
+
+  NODE_BIN="$(mise where node)/bin"
+  NPX_PATH="$NODE_BIN/npx"
+
+  echo "✓ Gemini MCP（@rlabs-inc/gemini-mcp）を追加中..."
+  mmcp add --env PATH="$NODE_BIN:$PATH" --env GEMINI_API_KEY="$GEMINI_API_KEY" --env QUIET=true \
+    -- gemini "$NPX_PATH" -y @rlabs-inc/gemini-mcp
+
+  echo ""
+  echo "✅ Gemini MCP の追加が完了しました！"
+  echo ""
+  echo "用途: Claude Code 内から Gemini に軽い質問・分析を依頼"
+  echo "（重い用途は Skills 経由の CLI 直接呼び出しを推奨）"
+  echo ""
+  echo "次のステップ: mise run mmcp-apply"
 """
 
 # -----------------------------------------------------------------------------
@@ -461,8 +526,50 @@ description = "登録済みエージェントを表示"
 run = "mmcp agents list"
 
 [tasks.mmcp-apply]
-description = "mmcp 設定を各エージェントに適用"
-run = "mmcp apply"
+description = "mmcp 設定を適用（マージモード：既存設定を保持）"
+run = "mmcp apply --mode merge"
+
+[tasks.mmcp-apply-replace]
+description = "mmcp 設定を適用（置換モード：mmcp 管理外の設定を削除）"
+run = """
+  echo "🔄 置換モードで適用します..."
+  echo "⚠️  mmcp で管理していない MCP サーバー設定は削除されます"
+  echo ""
+  mmcp apply --mode replace
+  echo ""
+  echo "✅ 完了！"
+  echo "⚠️  Claude Desktop / VS Code を再起動してください。"
+"""
+
+[tasks.mmcp-remove-and-apply]
+description = "MCP サーバーを削除して置換モードで適用 (例: mise run mmcp-remove-and-apply context7)"
+run = """
+  if [ -z "$1" ]; then
+    echo "❌ 削除するサーバー名を指定してください"
+    echo ""
+    echo "使い方: mise run mmcp-remove-and-apply <サーバー名>"
+    echo ""
+    echo "例:"
+    echo "  mise run mmcp-remove-and-apply context7"
+    echo "  mise run mmcp-remove-and-apply sequential-thinking"
+    exit 1
+  fi
+
+  echo "🗑️  $1 を削除します..."
+  mmcp remove "$1"
+
+  echo ""
+  echo "🔄 置換モードで適用します..."
+  mmcp apply --mode replace
+
+  echo ""
+  echo "✅ 完了！"
+  echo "⚠️  Claude Desktop / VS Code を再起動してください。"
+"""
+
+[tasks.mmcp-version]
+description = "mmcp のバージョンを確認"
+run = "mmcp --version"
 
 [tasks.mmcp-browse-catalog]
 description = "MCP サーバーカタログをブラウザで開く"

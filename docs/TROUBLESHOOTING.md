@@ -197,9 +197,17 @@ Command Palette (Cmd+Shift+P) > Developer: Reload Window
 
 MCPサーバーを移行・更新した際、各エージェントの設定ファイルに古い設定が残ることがあります。
 
+### 原因
+
+mmcp v0.5.0 以前では `mmcp apply` がマージモードのみで、削除した設定が反映されませんでした。
+v0.6.0 以降では `--mode replace` オプションで解決できます。
+
 ### 確認方法
 
 ```bash
+# mmcp のバージョン確認
+mmcp --version
+
 # mmcpに登録されているサーバー一覧
 mmcp list
 
@@ -211,21 +219,24 @@ cat ~/.copilot/mcp-config.json | jq '.mcpServers | keys'
 
 ### 解決方法
 
-#### 1. mmcpから削除
+#### 方法1: 置換モードで適用（推奨・v0.6.0+）
 
 **mmcp単体:**
 ```bash
 mmcp remove <古いサーバー名>
-mmcp apply
+mmcp apply --mode replace
 ```
 
 **mise:**
 ```bash
+mise run mmcp-remove-and-apply <古いサーバー名>
+
+# または手動で
 mise run mmcp-remove <古いサーバー名>
-mise run mmcp-apply
+mise run mmcp-apply-replace
 ```
 
-#### 2. 各エージェントから手動削除（必要な場合）
+#### 方法2: 各エージェントから手動削除（v0.5.0 以前または方法1で解決しない場合）
 
 **Claude Code (JSON形式):**
 
@@ -260,7 +271,7 @@ cat ~/.copilot/mcp-config.json | jq 'del(.mcpServers."古いサーバー名")' >
 mv /tmp/tmp.json ~/.copilot/mcp-config.json
 ```
 
-#### 3. VS Codeを再起動
+#### 3. VS Code / Claude Desktop を再起動
 
 ```
 Command Palette (Cmd+Shift+P) > Developer: Reload Window
@@ -272,6 +283,7 @@ Command Palette (Cmd+Shift+P) > Developer: Reload Window
 - パッケージ名が変更された時
 - Docker版に移行した時（例: npm版GitHub → Docker版GitHub）
 - 環境変数の設定方法が変更された時
+- **不要になったMCPサーバーを削除した時**（v0.6.0+ では `--mode replace` で解決）
 
 ---
 

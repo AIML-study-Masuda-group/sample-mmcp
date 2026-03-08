@@ -17,7 +17,7 @@
 
 - **mmcp単体での使い方** - 基本的な使用方法（このREADME）
 - **miseによる自動化** - より高度な自動化（[docs/MISE.md](docs/MISE.md)）
-- **CLIツール vs MCPサーバー** - 効率的な使い分け方（[docs/CLI_VS_MCP.md](docs/CLI_VS_MCP.md)）
+- **CLIツール vs MCPサーバー** - `gh`や`gcloud`などのCLIツールとMCPサーバーを効率的に使い分ける方法（[docs/CLI_VS_MCP.md](docs/CLI_VS_MCP.md)）
 - **API key取得方法** - 各サービスのトークン取得手順（[docs/API_KEYS.md](docs/API_KEYS.md)）
 - **トラブルシューティング** - 問題解決ガイド（[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)）
 
@@ -43,8 +43,15 @@ brew install node
 ### 2. mmcp のインストール
 
 ```bash
-npm install -g mmcp
+# npm でインストール
+npm install -g mmcp@0.6.2
+
+# バージョン確認（v0.6.0 以上が必要）
+mmcp --version
 ```
+
+> **Note**: v0.6.0 以降で `--mode replace` オプションが追加されました。
+> 古いバージョンでは MCP サーバーの削除が正しく反映されない場合があります。
 
 ### 3. MCPサーバーの追加
 
@@ -62,6 +69,9 @@ mmcp add filesystem npx -y @modelcontextprotocol/server-filesystem /Users/$(whoa
 
 # Playwright - ブラウザ自動化
 mmcp add playwright npx -y @playwright/mcp
+
+# Draw.io - ダイアグラム生成（Mermaid/CSV/XML → draw.ioエディタで表示）
+mmcp add drawio npx -y @drawio/mcp
 ```
 
 ### 4. エージェントの登録
@@ -168,12 +178,18 @@ mmcp agents remove <エージェント名>
 ### 設定の適用
 
 ```bash
-# すべてのエージェントに設定を適用
-mmcp apply
+# すべてのエージェントに設定を適用（マージモード：既存設定を保持）
+mmcp apply --mode merge
+
+# 置換モード：mmcp で管理していない設定を削除
+mmcp apply --mode replace
 
 # 適用後は必ずVS Codeを再起動
 # Command Palette (Cmd+Shift+P) > Developer: Reload Window
 ```
+
+> **重要**: `mmcp remove` で MCP サーバーを削除した後は、`--mode replace` で適用してください。
+> マージモード（デフォルト）では、削除した設定がエージェント側に残ったままになります。
 
 ---
 
@@ -187,6 +203,7 @@ mmcp apply
 | Context7 | 最新ドキュメント検索 | `@upstash/context7-mcp` |
 | Filesystem | ファイル操作 | `@modelcontextprotocol/server-filesystem` |
 | Playwright | ブラウザ自動化 | `@playwright/mcp` |
+| Draw.io | ダイアグラム生成（Mermaid/CSV/XML → draw.io） | `@drawio/mcp` |
 
 ### 環境変数が必要なもの
 
@@ -247,13 +264,31 @@ mmcpは以下のAIエージェントに対応しています:
 ```
 sample-mmcp/
 ├── README.md                # このファイル（mmcp基本ガイド）
-├── config.toml              # mise設定（mmcp関連タスク定義）
-├── .env.mcp.sample          # 環境変数のサンプル
+├── config.toml              # mise設定（タスク定義とツールバージョン管理）
+├── .env.mcp.sample          # 環境変数のテンプレート（実際の設定は.env.mcpにコピー）
+├── .gitignore               # Git管理対象外ファイルの設定（.env.mcpなど）
 └── docs/
-    ├── MISE.md              # miseによる自動化ガイド
-    ├── API_KEYS.md          # API key/トークン取得方法
-    └── TROUBLESHOOTING.md   # トラブルシューティング
+    ├── MISE.md              # miseによる自動化ガイド（環境変数管理とセットアップ自動化）
+    ├── CLI_VS_MCP.md        # CLIツールとMCPサーバーの使い分けガイド
+    ├── API_KEYS.md          # 各サービスのAPI key/トークン取得方法
+    └── TROUBLESHOOTING.md   # よくある問題と解決方法
 ```
+
+### 各ファイルの詳細
+
+#### ルートディレクトリ
+
+- **[README.md](README.md)**: mmcpの基本的な使い方とクイックスタートガイド（このファイル）
+- **[config.toml](config.toml)**: mise設定ファイル。MCPサーバーのセットアップタスク、Node.jsバージョン管理、環境変数読み込みなどを定義
+- **[.env.mcp.sample](.env.mcp.sample)**: 環境変数のテンプレート。実際に使用する際は `.env.mcp` としてコピーし、実際のトークン値を設定
+- **[.gitignore](.gitignore)**: Gitで管理しないファイルを定義（`.env.mcp`、`.DS_Store`など）
+
+#### docsディレクトリ
+
+- **[MISE.md](docs/MISE.md)**: miseを使った高度な自動化ガイド。環境変数の一元管理やセットアップの自動化方法を解説
+- **[CLI_VS_MCP.md](docs/CLI_VS_MCP.md)**: CLIツール（`gh`、`gcloud`など）とMCPサーバーの使い分けガイド。どちらを優先すべきか、具体的なユースケース別に解説
+- **[API_KEYS.md](docs/API_KEYS.md)**: GitHub、Notion、Slack、Google Cloud等のAPI keyやトークンの取得手順を詳しく解説
+- **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)**: MCPサーバーが認識されない、環境変数が読み込まれないなど、よくある問題と解決方法
 
 ---
 
