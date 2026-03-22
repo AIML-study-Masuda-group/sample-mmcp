@@ -11,7 +11,6 @@ mmcp や MCP サーバーで問題が発生した場合の対処方法をまと�
 - [古いMCPサーバー設定が残っている](#古いmcpサーバー設定が残っている)
 - [特定のMCPサーバーが動作しない](#特定のmcpサーバーが動作しない)
 - [npxコマンドが見つからない](#npxコマンドが見つからない)
-- [Dockerコマンドが見つからない](#dockerコマンドが見つからない)
 
 ---
 
@@ -99,7 +98,7 @@ jq '.' ~/.claude.json
 
 ## 環境変数が読み込まれない
 
-GitHub、Notion、Slack等のMCPサーバーで認証エラーが発生する場合。
+Notion等のMCPサーバーで認証エラーが発生する場合。
 
 ### 確認方法
 
@@ -107,13 +106,11 @@ GitHub、Notion、Slack等のMCPサーバーで認証エラーが発生する場
 
 ```bash
 # 環境変数が設定されているか確認
-echo $GITHUB_PERSONAL_ACCESS_TOKEN
 echo $NOTION_TOKEN
-echo $SLACK_BOT_TOKEN
 
 # シェル設定ファイルに記載されているか確認
-cat ~/.zshrc | grep GITHUB_PERSONAL_ACCESS_TOKEN
-cat ~/.bashrc | grep GITHUB_PERSONAL_ACCESS_TOKEN
+cat ~/.zshrc | grep NOTION_TOKEN
+cat ~/.bashrc | grep NOTION_TOKEN
 ```
 
 **miseを使う場合:**
@@ -123,7 +120,7 @@ cat ~/.bashrc | grep GITHUB_PERSONAL_ACCESS_TOKEN
 ls -la ~/.config/mise/.env.mcp
 
 # 内容を確認（トークンが実際に設定されているか）
-cat ~/.config/mise/.env.mcp | grep GITHUB_PERSONAL_ACCESS_TOKEN
+cat ~/.config/mise/.env.mcp | grep NOTION_TOKEN
 ```
 
 ### 解決方法
@@ -134,11 +131,9 @@ cat ~/.config/mise/.env.mcp | grep GITHUB_PERSONAL_ACCESS_TOKEN
 
 ```bash
 # 一時的に設定
-export GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxxxx
 export NOTION_TOKEN=ntn_xxxxx
 
 # 永続化（~/.zshrc または ~/.bashrc に追加）
-echo 'export GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxxxx' >> ~/.zshrc
 echo 'export NOTION_TOKEN=ntn_xxxxx' >> ~/.zshrc
 
 # シェル設定を再読み込み
@@ -149,11 +144,9 @@ source ~/.zshrc
 
 ```bash
 # 既存の設定を削除
-mmcp remove github
 mmcp remove notion
 
 # 環境変数付きで再登録
-mmcp add github docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN ghcr.io/github/github-mcp-server
 mmcp add notion npx -y @notionhq/notion-mcp-server
 
 # 適用
@@ -213,7 +206,6 @@ mmcp list
 
 # 各エージェントの設定を確認
 cat ~/.claude.json | jq '.mcpServers | keys'
-cat ~/.codex/config.toml | grep '^\[mcp_servers\.'
 cat ~/.copilot/mcp-config.json | jq '.mcpServers | keys'
 ```
 
@@ -256,14 +248,6 @@ cat ~/Library/Application\ Support/Claude/claude_desktop_config.json | jq 'del(.
 mv /tmp/tmp.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
 ```
 
-**Codex CLI (TOML形式):**
-
-```bash
-# エディタで手動削除
-vim ~/.codex/config.toml
-# [mcp_servers.古いサーバー名] セクションと [mcp_servers.古いサーバー名.env] セクションを削除
-```
-
 **GitHub Copilot CLI (JSON形式):**
 
 ```bash
@@ -281,7 +265,6 @@ Command Palette (Cmd+Shift+P) > Developer: Reload Window
 
 - MCPサーバーを公式版に移行した時（例: `bigquery` → `gcp-bigquery`）
 - パッケージ名が変更された時
-- Docker版に移行した時（例: npm版GitHub → Docker版GitHub）
 - 環境変数の設定方法が変更された時
 - **不要になったMCPサーバーを削除した時**（v0.6.0+ では `--mode replace` で解決）
 
@@ -360,33 +343,6 @@ cat ~/.config/mise/.env.mcp | grep BIGQUERY_PROJECT
 cat ~/.config/mise/.env.mcp | grep DATAPLEX_PROJECT
 ```
 
-### GitHubサーバーが動作しない（Docker版）
-
-**確認方法:**
-
-```bash
-# Dockerが起動しているか確認
-docker ps
-
-# トークンが設定されているか確認
-echo $GITHUB_PERSONAL_ACCESS_TOKEN
-```
-
-**解決方法:**
-
-```bash
-# Dockerを起動
-open -a Docker
-
-# トークンを再設定
-export GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxxxx
-
-# mmcpに再登録
-mmcp remove github
-mmcp add github docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN ghcr.io/github/github-mcp-server
-mmcp apply
-```
-
 ---
 
 ## npxコマンドが見つからない
@@ -447,55 +403,6 @@ mise install node@latest
 
 # または、プロジェクトのconfig.tomlに記載されているバージョンをインストール
 mise install
-```
-
----
-
-## Dockerコマンドが見つからない
-
-`docker: command not found` エラーが発生する場合。
-
-### 確認方法
-
-```bash
-# Dockerがインストールされているか確認
-which docker
-docker --version
-
-# Dockerが起動しているか確認
-docker ps
-```
-
-### 解決方法
-
-#### 1. Docker Desktopをインストール
-
-1. https://www.docker.com/products/docker-desktop/ にアクセス
-2. macOS版をダウンロード
-3. インストーラーを実行
-
-#### 2. Dockerを起動
-
-```bash
-# Docker Desktopを起動
-open -a Docker
-
-# 起動を確認
-docker ps
-```
-
-#### 3. PATHを確認
-
-```bash
-# PATHを確認
-echo $PATH
-
-# Dockerのパスが含まれているか確認
-which docker
-
-# 含まれていない場合、シェル設定ファイルに追加
-echo 'export PATH="/usr/local/bin:$PATH"' >> ~/.zshrc
-source ~/.zshrc
 ```
 
 ---

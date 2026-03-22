@@ -464,10 +464,9 @@ Node.js 系 MCP サーバーは `npx -y` で統一を推奨します。
 
 | MCP サーバー | 方式 | 理由 |
 |---|---|---|
-| filesystem, playwright, notion, gemini, drawio | npx -y | Node.js パッケージ |
+| filesystem, playwright, notion, notion-readonly, gemini, drawio | npx -y | Node.js パッケージ |
 | gcp-bigquery, gcp-dataplex | ローカルバイナリ | Go 製の toolbox |
 | serena | uv tool | Python 製 |
-| popup-bi | カスタムスクリプト | プロジェクト固有 |
 
 Node.js 以外の MCP サーバーは、それぞれ適切な方式（バイナリ直接実行、uv tool 等）で管理しています。
 

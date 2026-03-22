@@ -7,7 +7,7 @@
 ### 主な機能
 
 - MCPサーバーを`~/.mmcp.json`で一元管理
-- 複数のエージェント（Claude Code、Claude Desktop、Codex CLI、GitHub Copilot CLI等）に一括適用
+- 複数のエージェント（Claude Code、Claude Desktop、GitHub Copilot CLI、Gemini CLI等）に一括適用
 - 環境変数を使った安全なAPI key管理
 - コマンド一つで全エージェントに設定を同期
 
@@ -58,12 +58,6 @@ mmcp --version
 まずは環境変数不要のMCPサーバーから始めましょう。
 
 ```bash
-# Sequential Thinking - 構造化された思考プロセス
-mmcp add sequential-thinking npx -y @modelcontextprotocol/server-sequential-thinking
-
-# Context7 - 最新ドキュメント検索
-mmcp add context7 npx -y @upstash/context7-mcp
-
 # Filesystem - ファイル操作（デスクトップへのアクセスを許可）
 mmcp add filesystem npx -y @modelcontextprotocol/server-filesystem /Users/$(whoami)/Desktop
 
@@ -84,8 +78,8 @@ mmcp agents add claude-code
 
 # 他のエージェントも使う場合（オプション）
 mmcp agents add claude-desktop     # Claude Desktopアプリ
-mmcp agents add codex-cli          # OpenAI Codex CLI
 mmcp agents add github-copilot-cli # GitHub Copilot CLI
+mmcp agents add gemini-cli         # Google Gemini CLI
 ```
 
 ### 5. 設定を適用
@@ -106,40 +100,38 @@ Command Palette (Cmd+Shift+P) > Developer: Reload Window
 
 ## 🔑 環境変数が必要なMCPサーバー
 
-GitHub、Notion、Slack等のMCPサーバーを使う場合は、API key/トークンを設定する必要があります。
+Notion等のMCPサーバーを使う場合は、API key/トークンを設定する必要があります。
 
 ### トークンの取得
 
 詳しい取得方法は [docs/API_KEYS.md](docs/API_KEYS.md) を参照してください。
 
-- **GitHub**: Personal Access Token
-- **Notion**: Integration Token
-- **Slack**: Bot Token & Team ID
+- **Notion**: Integration Token（書き込み用・読み取り専用の2種類）
+- **Gemini**: API Key
 - **Google Cloud**: Application Default Credentials または サービスアカウントキー
 
 ### 環境変数の設定
 
 ```bash
 # 一時的に設定
-export GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxxxx
 export NOTION_TOKEN=ntn_xxxxx
 
 # 永続化する場合は ~/.zshrc や ~/.bashrc に追加
-echo 'export GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxxxx' >> ~/.zshrc
+echo 'export NOTION_TOKEN=ntn_xxxxx' >> ~/.zshrc
 source ~/.zshrc
 ```
 
 ### MCPサーバーの追加
 
 ```bash
-# GitHub - リポジトリ操作（Docker版）
-mmcp add github docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN ghcr.io/github/github-mcp-server
-
-# Notion - Notion API
+# Notion - Notion API（書き込み権限あり）
 mmcp add notion npx -y @notionhq/notion-mcp-server
 
-# Slack - Slack API
-mmcp add slack npx -y @modelcontextprotocol/server-slack
+# Notion readonly - Notion API（読み取り専用）
+mmcp add notion-readonly npx -y @notionhq/notion-mcp-server
+
+# Gemini MCP - Claude Code内からGeminiを呼ぶ
+mmcp add gemini npx -y @rlabs-inc/gemini-mcp
 
 # 設定を適用
 mmcp apply
@@ -199,8 +191,6 @@ mmcp apply --mode replace
 
 | サーバー名 | 説明 | パッケージ |
 |---|---|---|
-| Sequential Thinking | 構造化された思考プロセス | `@modelcontextprotocol/server-sequential-thinking` |
-| Context7 | 最新ドキュメント検索 | `@upstash/context7-mcp` |
 | Filesystem | ファイル操作 | `@modelcontextprotocol/server-filesystem` |
 | Playwright | ブラウザ自動化 | `@playwright/mcp` |
 | Draw.io | ダイアグラム生成（Mermaid/CSV/XML → draw.io） | `@drawio/mcp` |
@@ -209,13 +199,71 @@ mmcp apply --mode replace
 
 | サーバー名 | 説明 | 必要な環境変数 |
 |---|---|---|
-| GitHub | GitHubリポジトリ操作 | `GITHUB_PERSONAL_ACCESS_TOKEN` |
-| Notion | Notion API | `NOTION_TOKEN` |
-| Slack | Slack API | `SLACK_BOT_TOKEN`, `SLACK_TEAM_ID` |
+| Notion | Notion API（書き込み権限あり） | `NOTION_TOKEN` |
+| Notion readonly | Notion API（読み取り専用） | `NOTION_READONLY_TOKEN` |
+| Gemini MCP | Claude Code内からGeminiを呼ぶ | `GEMINI_API_KEY` |
 | BigQuery | Google BigQuery | `BIGQUERY_PROJECT` |
 | Dataplex | Dataplex Universal Catalog | `DATAPLEX_PROJECT` |
 
 詳しい設定方法は [docs/API_KEYS.md](docs/API_KEYS.md) を参照してください。
+
+### mmcp 管理対象外（エージェント個別設定）
+
+以下のMCPサーバーは、特定のエージェントでのみ使用するため mmcp では管理せず、各エージェントの設定ファイルに直接記載します。
+
+| サーバー名 | 対象エージェント | 理由 |
+|---|---|---|
+| GitHub | Claude Desktop のみ | Claude Code 等では `gh` CLI や `.mcp.json` で対応。MCP のトークン消費を避けるため |
+
+#### GitHub MCP（Claude Desktop 個別設定）
+
+mise でバイナリをインストールし、Claude Desktop の設定ファイルに直接追加します。Docker / Go / npm は不要です。
+
+**1. github-mcp-server のインストール:**
+
+```bash
+# mise のグローバル設定にインストール（~/.config/mise/config.toml に追加される）
+mise use -g ubi:github/github-mcp-server@0.32.0
+```
+
+**2. Claude Desktop の設定ファイルに追加:**
+
+設定ファイルの場所: `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+`mcpServers` に以下を追加（`<HOME>` は各ユーザーのホームディレクトリに置き換え）:
+
+```json
+{
+  "github": {
+    "command": "<HOME>/.local/share/mise/installs/ubi-github-github-mcp-server/0.32.0/github-mcp-server",
+    "args": ["stdio"],
+    "env": {
+      "GITHUB_PERSONAL_ACCESS_TOKEN": "<PAT>"
+    }
+  }
+}
+```
+
+> **Note**: Claude Desktop は mise の shim を経由しないため、バイナリのフルパスを指定する必要があります。
+
+**3. Fine-grained PAT の作成:**
+
+1. https://github.com/settings/personal-access-tokens/new にアクセス
+2. 以下の設定で作成:
+   - **Resource owner**: scene-live
+   - **Repository access**: 必要なリポを選択（data-analytics-platform, insight-hub 等）
+   - **Permissions**:
+     - Contents: Read
+     - Pull requests: Read & Write
+     - Issues: Read
+     - Metadata: Read
+   - **Expiration**: 1 year
+   - **Description**: `Claude Desktop MCP - 社内リポ探索・PR作成用（github-mcp-server）`
+
+**注意事項:**
+- Copilot HTTP 版（`api.githubcopilot.com/mcp/`）は Organization のプライベートリポジトリにアクセスできないため使用しない
+- Claude Desktop の GUI「カスタムコネクタ」に GitHub を追加済みの場合は削除する（Organization アクセスの問題があるため）
+- `mmcp apply --mode replace` を実行すると、この手動設定が消えるため注意（merge モードでは保持される）
 
 ---
 
@@ -225,10 +273,8 @@ mmcpは以下のAIエージェントに対応しています:
 
 - **claude-code** - VS Code拡張機能版Claude Code
 - **claude-desktop** - Claude Desktopアプリ
-- **codex-cli** - OpenAI Codex CLI
-- **cursor** - Cursor IDE
-- **gemini-cli** - Google Gemini CLI
 - **github-copilot-cli** - GitHub Copilot CLI
+- **gemini-cli** - Google Gemini CLI
 
 ---
 
@@ -287,7 +333,7 @@ sample-mmcp/
 
 - **[MISE.md](docs/MISE.md)**: miseを使った高度な自動化ガイド。環境変数の一元管理やセットアップの自動化方法を解説
 - **[CLI_VS_MCP.md](docs/CLI_VS_MCP.md)**: CLIツール（`gh`、`gcloud`など）とMCPサーバーの使い分けガイド。どちらを優先すべきか、具体的なユースケース別に解説
-- **[API_KEYS.md](docs/API_KEYS.md)**: GitHub、Notion、Slack、Google Cloud等のAPI keyやトークンの取得手順を詳しく解説
+- **[API_KEYS.md](docs/API_KEYS.md)**: GitHub、Notion、Gemini、Google Cloud等のAPI keyやトークンの取得手順を詳しく解説
 - **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)**: MCPサーバーが認識されない、環境変数が読み込まれないなど、よくある問題と解決方法
 
 ---

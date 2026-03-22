@@ -63,10 +63,9 @@ mise run mcp-setup-quick
 ```
 
 登録されるサーバー:
-- **Sequential Thinking** - 構造化された思考プロセス
-- **Context7** - 最新ドキュメント検索
 - **Filesystem** - ファイル操作
 - **Playwright** - ブラウザ自動化
+- **Draw.io** - ダイアグラム生成
 
 #### 3-2. 環境変数が必要なMCPサーバー
 
@@ -78,8 +77,9 @@ mise run mcp-setup-with-env
 
 登録されるサーバー（環境変数が設定されているもののみ）:
 - **GitHub** - GitHubリポジトリ操作
-- **Notion** - Notion API
-- **Slack** - Slack API
+- **Notion** - Notion API（書き込み権限あり）
+- **Notion readonly** - Notion API（読み取り専用）
+- **Gemini MCP** - Claude Code内からGeminiを呼ぶ
 
 #### 3-3. Google Cloud（BigQuery & Dataplex）のセットアップ
 
@@ -117,7 +117,7 @@ mise run mcp-add-serena
 # エージェントを登録
 mise run mmcp-agents-add claude-code
 # または複数同時に
-mise run mmcp-agents-add claude-code claude-desktop codex-cli
+mise run mmcp-agents-add claude-code claude-desktop github-copilot-cli
 
 # 設定を適用
 mise run mmcp-apply

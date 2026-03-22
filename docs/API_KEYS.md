@@ -11,11 +11,10 @@
 環境変数として設定:
 
 ```bash
-export GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxxxx
 export NOTION_TOKEN=ntn_xxxxx
 
 # 永続化する場合は ~/.zshrc や ~/.bashrc に追加
-echo 'export GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxxxx' >> ~/.zshrc
+echo 'export NOTION_TOKEN=ntn_xxxxx' >> ~/.zshrc
 ```
 
 ### miseを使う場合
@@ -29,39 +28,6 @@ cp sample-mmcp/.env.mcp.sample ~/.config/mise/.env.mcp
 # エディタで開き、API key/トークンを設定
 vim ~/.config/mise/.env.mcp
 ```
-
----
-
-## GitHub Personal Access Token
-
-GitHubリポジトリの操作（コード検索、Issue/PR管理等）に必要です。
-
-### 取得手順
-
-1. https://github.com/settings/tokens にアクセス
-2. **"Generate new token (classic)"** をクリック
-3. トークンの説明を入力（例: "MCP Server for Claude Code"）
-4. 必要なスコープを選択:
-   - `repo` - プライベートリポジトリも含む場合
-   - `public_repo` - 公開リポジトリのみの場合
-5. **"Generate token"** をクリック
-6. 表示されたトークンをコピー（`ghp_`で始まる文字列）
-
-### 設定例
-
-```bash
-# 環境変数として設定
-export GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-
-# または .env.mcp に記載
-GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
-
-### 注意事項
-
-- トークンは一度しか表示されないため、必ずコピーして保存してください
-- トークンは定期的に更新することをおすすめします
-- 不要になったトークンは削除してください
 
 ---
 
@@ -98,59 +64,36 @@ NOTION_TOKEN=ntn_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ---
 
-## Slack Bot Token
+## Notion Integration Token（読み取り専用）
 
-Slackチャンネルのメッセージ読み書き、情報取得に必要です。
+Notionページの読み取り専用アクセスに使用します。書き込み用と分けることでセキュリティを向上できます。
 
 ### 取得手順
 
-1. https://api.slack.com/apps にアクセス
-2. **"Create New App"** をクリック
-3. **"From scratch"** を選択
-4. アプリ名を入力（例: "Claude Code MCP"）
-5. ワークスペースを選択
-6. **"Create App"** をクリック
-7. サイドバーの **"OAuth & Permissions"** をクリック
-8. **"Scopes"** セクションで以下のBot Token Scopesを追加:
-   - `channels:read` - チャンネル一覧の取得
-   - `channels:history` - チャンネルメッセージの読み取り
-   - `chat:write` - メッセージの投稿
-9. ページ上部の **"Install to Workspace"** をクリック
-10. **"許可する"** をクリック
-11. 表示された **Bot User OAuth Token** をコピー（`xoxb-`で始まる文字列）
-
-### Team IDの取得
-
-1. Slackワークスペースを開く
-2. ワークスペース名をクリック
-3. **"設定と管理"** > **"ワークスペースの設定"** を選択
-4. URLに表示される `https://app.slack.com/client/T01234567/...` の `T01234567` 部分がTeam ID
+1. https://www.notion.so/profile/integrations にアクセス
+2. **"新しいインテグレーションを作成"** をクリック
+3. インテグレーション名を入力（例: "Claude Code MCP (readonly)"）
+4. ワークスペースを選択
+5. **権限を「読み取り」のみに設定**
+6. **"送信"** をクリック
+7. **Internal Integration Token** をコピー（`ntn_`で始まる文字列）
+8. Notionで使用したいページを開き、**"..."** メニューから **"接続を追加"** を選択
+9. 作成したインテグレーションを選択
 
 ### 設定例
 
 ```bash
 # 環境変数として設定
-export SLACK_BOT_TOKEN=xoxb-xxxxxxxxxxxx-xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxx
-export SLACK_TEAM_ID=T01234567
+export NOTION_READONLY_TOKEN=ntn_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # または .env.mcp に記載
-SLACK_BOT_TOKEN=xoxb-xxxxxxxxxxxx-xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxx
-SLACK_TEAM_ID=T01234567
+NOTION_READONLY_TOKEN=ntn_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-### オプション設定
+### 注意事項
 
-特定のチャンネルのみに制限したい場合:
-
-```bash
-# カンマ区切りでチャンネルIDを指定
-SLACK_CHANNEL_IDS=C01234567,C76543210
-```
-
-チャンネルIDの確認方法:
-1. Slackでチャンネルを開く
-2. チャンネル名をクリック
-3. 画面下部に表示される「チャンネルID」をコピー
+- 書き込み用トークン（`NOTION_TOKEN`）とは別のインテグレーションを作成してください
+- 読み取り専用なので誤ってデータを変更するリスクがありません
 
 ---
 
@@ -308,15 +251,6 @@ GOOGLE_APPLICATION_CREDENTIALS=/Users/$(whoami)/.config/gcp/service-account.json
 
 ### 環境変数が読み込まれない
 
-**mmcp単体の場合:**
-```bash
-# 環境変数が設定されているか確認
-echo $GITHUB_PERSONAL_ACCESS_TOKEN
-
-# シェル設定ファイルに記載されているか確認
-cat ~/.zshrc | grep GITHUB_PERSONAL_ACCESS_TOKEN
-```
-
 **miseの場合:**
 ```bash
 # .env.mcp ファイルが存在するか確認
@@ -343,8 +277,6 @@ gcloud services list --enabled | grep bigquery
 
 ## 参考リンク
 
-- [GitHub Personal Access Tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
 - [Notion API Getting Started](https://developers.notion.com/docs/getting-started)
-- [Slack API Documentation](https://api.slack.com/start)
 - [Google Cloud Authentication](https://cloud.google.com/docs/authentication/getting-started)
 - [BigQuery API](https://cloud.google.com/bigquery/docs/reference/rest)
