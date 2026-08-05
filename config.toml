@@ -55,7 +55,6 @@ node      = "22.21.0"       # Node.js 22.x LTS 最新版 主にVSCodeのClaude C
 #   環境変数必要:
 #     - Notion (公式)
 #     - Notion readonly (公式・読み取り専用トークン)
-#     - Gemini MCP（Claude Code内からGeminiを呼ぶ・軽い用途）
 #   Google Cloud (MCP Toolbox):
 #     - BigQuery (Google公式)
 #     - Dataplex (Google公式)
@@ -66,7 +65,6 @@ node      = "22.21.0"       # Node.js 22.x LTS 最新版 主にVSCodeのClaude C
 #   - claude-code (VS Code拡張)
 #   - claude-desktop (Claude Desktop)
 #   - github-copilot-cli (GitHub Copilot CLI)
-#   - gemini-cli (Google Gemini CLI)
 # ==============================================================================
 
 # -----------------------------------------------------------------------------
@@ -109,7 +107,7 @@ run = """
 # 環境変数が必要なMCPサーバー
 # -----------------------------------------------------------------------------
 [tasks.mcp-setup-with-env]
-description = "環境変数が必要なMCPサーバーを追加（Notion, Notion readonly, Gemini）"
+description = "環境変数が必要なMCPサーバーを追加（Notion, Notion readonly）"
 run = """
   echo "🔑 環境変数が必要なMCPサーバーを追加します..."
   echo ""
@@ -154,10 +152,6 @@ NOTION_READONLY_TOKEN=
 BIGQUERY_PROJECT=
 DATAPLEX_PROJECT=
 GOOGLE_APPLICATION_CREDENTIALS=  # 任意: 未設定の場合は gcloud ADC を使用
-
-# Gemini API Key (Gemini MCP サーバー用)
-# 取得方法: https://aistudio.google.com/apikey（無料）
-GEMINI_API_KEY=
 EOF
 
     echo "✅ テンプレートファイルを作成しました: $ENV_FILE"
@@ -214,16 +208,6 @@ EOF
     ADDED_COUNT=$((ADDED_COUNT + 1))
   else
     echo "⊘ Notion readonly をスキップ（NOTION_READONLY_TOKEN が未設定）"
-  fi
-
-  # Gemini MCP - Claude Code内からGeminiを呼べる
-  if [ -n "$GEMINI_API_KEY" ]; then
-    echo "✓ Gemini MCP を追加中..."
-    mmcp add --env PATH="$NODE_BIN:$PATH" --env GEMINI_API_KEY="$GEMINI_API_KEY" --env QUIET=true \
-      -- gemini "$NPX_PATH" -y @rlabs-inc/gemini-mcp
-    ADDED_COUNT=$((ADDED_COUNT + 1))
-  else
-    echo "⊘ Gemini MCP をスキップ（GEMINI_API_KEY が未設定）"
   fi
 
   echo ""
@@ -421,52 +405,6 @@ run = """
   echo "次のステップ:"
   echo "  1. mise run mmcp-agents-add claude-code"
   echo "  2. mise run mmcp-apply"
-"""
-
-# -----------------------------------------------------------------------------
-# AI エージェント連携 MCP（Claude Code内から他AIを呼ぶ）
-# -----------------------------------------------------------------------------
-# Claude Code をメインに、Gemini をサブエージェントとして活用する。
-# 軽い用途（質問、小さな分析）は MCP 経由、
-# 重い用途（レビュー、実装委譲）は CLI 直接呼び出し（Skills経由）を推奨。
-# -----------------------------------------------------------------------------
-
-[tasks.mcp-add-gemini]
-description = "Gemini MCP サーバーを追加（Claude Code内からGeminiを軽く呼べるようにする）"
-run = """
-  echo "📦 Gemini MCP サーバーを追加します..."
-  echo ""
-
-  # .env.mcp から環境変数を読み込み
-  ENV_FILE="$HOME/.config/mise/.env.mcp"
-  if [ -f "$ENV_FILE" ]; then
-    source "$ENV_FILE"
-  fi
-
-  if [ -z "$GEMINI_API_KEY" ]; then
-    echo "❌ GEMINI_API_KEY が未設定です"
-    echo ""
-    echo "取得方法:"
-    echo "  1. https://aistudio.google.com/apikey にアクセス"
-    echo "  2. 「Get API key」をクリック（無料）"
-    echo "  3. ~/.config/mise/.env.mcp に GEMINI_API_KEY=AIzaSy... を追加"
-    exit 1
-  fi
-
-  NODE_BIN="$(mise where node)/bin"
-  NPX_PATH="$NODE_BIN/npx"
-
-  echo "✓ Gemini MCP（@rlabs-inc/gemini-mcp）を追加中..."
-  mmcp add --env PATH="$NODE_BIN:$PATH" --env GEMINI_API_KEY="$GEMINI_API_KEY" --env QUIET=true \
-    -- gemini "$NPX_PATH" -y @rlabs-inc/gemini-mcp
-
-  echo ""
-  echo "✅ Gemini MCP の追加が完了しました！"
-  echo ""
-  echo "用途: Claude Code 内から Gemini に軽い質問・分析を依頼"
-  echo "（重い用途は Skills 経由の CLI 直接呼び出しを推奨）"
-  echo ""
-  echo "次のステップ: mise run mmcp-apply"
 """
 
 # -----------------------------------------------------------------------------
