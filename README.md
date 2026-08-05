@@ -7,7 +7,7 @@
 ### 主な機能
 
 - MCPサーバーを`~/.mmcp.json`で一元管理
-- 複数のエージェント（Claude Code、Claude Desktop、GitHub Copilot CLI、Gemini CLI等）に一括適用
+- 複数のエージェント（Claude Code、Claude Desktop、GitHub Copilot CLI等）に一括適用
 - 環境変数を使った安全なAPI key管理
 - コマンド一つで全エージェントに設定を同期
 
@@ -79,7 +79,6 @@ mmcp agents add claude-code
 # 他のエージェントも使う場合（オプション）
 mmcp agents add claude-desktop     # Claude Desktopアプリ
 mmcp agents add github-copilot-cli # GitHub Copilot CLI
-mmcp agents add gemini-cli         # Google Gemini CLI
 ```
 
 ### 5. 設定を適用
@@ -107,7 +106,6 @@ Notion等のMCPサーバーを使う場合は、API key/トークンを設定す
 詳しい取得方法は [docs/API_KEYS.md](docs/API_KEYS.md) を参照してください。
 
 - **Notion**: Integration Token（書き込み用・読み取り専用の2種類）
-- **Gemini**: API Key
 - **Google Cloud**: Application Default Credentials または サービスアカウントキー
 
 ### 環境変数の設定
@@ -129,9 +127,6 @@ mmcp add notion npx -y @notionhq/notion-mcp-server
 
 # Notion readonly - Notion API（読み取り専用）
 mmcp add notion-readonly npx -y @notionhq/notion-mcp-server
-
-# Gemini MCP - Claude Code内からGeminiを呼ぶ
-mmcp add gemini npx -y @rlabs-inc/gemini-mcp
 
 # 設定を適用
 mmcp apply
@@ -201,7 +196,6 @@ mmcp apply --mode replace
 |---|---|---|
 | Notion | Notion API（書き込み権限あり） | `NOTION_TOKEN` |
 | Notion readonly | Notion API（読み取り専用） | `NOTION_READONLY_TOKEN` |
-| Gemini MCP | Claude Code内からGeminiを呼ぶ | `GEMINI_API_KEY` |
 | BigQuery | Google BigQuery | `BIGQUERY_PROJECT` |
 | Dataplex | Dataplex Universal Catalog | `DATAPLEX_PROJECT` |
 
@@ -274,7 +268,6 @@ mmcpは以下のAIエージェントに対応しています:
 - **claude-code** - VS Code拡張機能版Claude Code
 - **claude-desktop** - Claude Desktopアプリ
 - **github-copilot-cli** - GitHub Copilot CLI
-- **gemini-cli** - Google Gemini CLI
 
 ---
 
@@ -333,7 +326,7 @@ sample-mmcp/
 
 - **[MISE.md](docs/MISE.md)**: miseを使った高度な自動化ガイド。環境変数の一元管理やセットアップの自動化方法を解説
 - **[CLI_VS_MCP.md](docs/CLI_VS_MCP.md)**: CLIツール（`gh`、`gcloud`など）とMCPサーバーの使い分けガイド。どちらを優先すべきか、具体的なユースケース別に解説
-- **[API_KEYS.md](docs/API_KEYS.md)**: GitHub、Notion、Gemini、Google Cloud等のAPI keyやトークンの取得手順を詳しく解説
+- **[API_KEYS.md](docs/API_KEYS.md)**: GitHub、Notion、Google Cloud等のAPI keyやトークンの取得手順を詳しく解説
 - **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)**: MCPサーバーが認識されない、環境変数が読み込まれないなど、よくある問題と解決方法
 
 ---

@@ -79,7 +79,6 @@ mise run mcp-setup-with-env
 - **GitHub** - GitHubリポジトリ操作
 - **Notion** - Notion API（書き込み権限あり）
 - **Notion readonly** - Notion API（読み取り専用）
-- **Gemini MCP** - Claude Code内からGeminiを呼ぶ
 
 #### 3-3. Google Cloud（BigQuery & Dataplex）のセットアップ
 

@@ -27,3 +27,6 @@ data/
 data/*
 *.png
 __pycache__
+
+# MCP 用環境変数（実値を含むためコミットしない）
+.env.mcp
