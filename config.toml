@@ -130,6 +130,11 @@ run = """
 # 設定後、mise run mcp-setup-with-env を再度実行してください。
 # ==============================================================================
 
+# GitHub Personal Access Token
+# ※ mmcp 管理対象外。Claude Desktop の GitHub MCP 手動設定用に控えておく値。
+# 作成方法: https://github.com/settings/personal-access-tokens/new （Fine-grained PAT 推奨）
+GITHUB_PERSONAL_ACCESS_TOKEN=
+
 # Notion Integration Token
 # 作成方法: https://www.notion.so/profile/integrations
 #   新しいインテグレーションを作成 > Internal Integration Token をコピー

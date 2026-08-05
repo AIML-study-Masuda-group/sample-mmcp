@@ -31,6 +31,43 @@ vim ~/.config/mise/.env.mcp
 
 ---
 
+## GitHub Personal Access Token
+
+Claude Desktop の GitHub MCP サーバーに必要です。
+
+> **Note**: GitHub MCP は mmcp 管理対象外です。Claude Code では `gh` CLI を使うため不要で、
+> Claude Desktop の設定ファイルに直接記載します（手順は [README](../README.md) の
+> 「GitHub MCP（Claude Desktop 個別設定）」を参照）。`.env.mcp` には値を控えておく用途で記載します。
+
+### 取得手順
+
+1. https://github.com/settings/personal-access-tokens/new にアクセス（Fine-grained PAT）
+2. 以下を設定:
+   - **Resource owner**: 対象の Organization またはユーザー
+   - **Repository access**: 必要なリポジトリを選択
+   - **Permissions**:
+     - Contents: Read
+     - Pull requests: Read & Write
+     - Issues: Read
+     - Metadata: Read
+   - **Expiration**: 1 year
+3. 「Generate token」で作成し、表示されたトークンをコピー（再表示不可）
+
+### 設定例
+
+```bash
+# .env.mcp に記載
+GITHUB_PERSONAL_ACCESS_TOKEN=github_pat_xxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+### 注意事項
+
+- Fine-grained PAT は有効期限が切れると動かなくなるため、期限を管理すること
+- Copilot HTTP 版（`api.githubcopilot.com/mcp/`）は Organization のプライベートリポジトリに
+  アクセスできないため使用しない
+
+---
+
 ## Notion Integration Token
 
 Notionページの読み書き、データベース操作に必要です。
